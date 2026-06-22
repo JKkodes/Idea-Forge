@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IdeaForge — Zero-to-One Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #161310;
+      color: #e8e8e8;
+      line-height: 1.5;
+    }
+    .app { display: flex; height: 100vh; }
+    .panel {
+      width: 50%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #3a3226;
+    }
+    .panel:last-child { border-right: none; }
+
+    .chat-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #3a3226;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 1.35rem; font-weight: 700; color: #fff; }
+    .tagline { font-size: 0.8rem; color: #888; margin-top: 0.15rem; }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .message {
+      max-width: 85%;
+      padding: 0.65rem 1rem;
+      border-radius: 12px;
+      font-size: 0.925rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message-user {
+      align-self: flex-end;
+      background: #e8823f;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message-assistant {
+      align-self: flex-start;
+      background: #1e1e1e;
+      color: #e0e0e0;
+      border-bottom-left-radius: 4px;
+    }
+    .typing-indicator {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      min-width: 60px;
+    }
+    .typing-indicator span {
+      width: 7px;
+      height: 7px;
+      background: #8a7560;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #3a3226;
+      flex-shrink: 0;
+      background: #161310;
+    }
+    #message-input {
+      flex: 1;
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-radius: 10px;
+      color: #e8e8e8;
+      font-family: inherit;
+      font-size: 0.925rem;
+      padding: 0.65rem 0.85rem;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #message-input:focus { border-color: #e8823f; }
+    .send-btn {
+      background: #e8823f;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 1.25rem;
+      font-family: inherit;
+      font-size: 0.925rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      flex-shrink: 0;
+    }
+    .send-btn:hover:not(:disabled) { background: #d4702e; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .plan-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #3a3226;
+      flex-shrink: 0;
+    }
+    .plan-toolbar-title { font-size: 1.1rem; font-weight: 600; color: #fff; }
+    .stress-test-btn {
+      background: #2a1a0a;
+      color: #ff9f43;
+      border: 1px solid #ff9f43;
+      border-radius: 8px;
+      padding: 0.45rem 0.9rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .stress-test-btn:hover:not(:disabled) { background: #3d2510; }
+    .stress-test-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .stress-test-btn[hidden] { display: none; }
+
+    .plan-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem 1.5rem;
+    }
+    .plan-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #9c9388;
+    }
+    .placeholder-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
+    .placeholder-hint { font-size: 0.85rem; margin-top: 0.5rem; color: #555; }
+
+    .plan-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .plan-header {
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #3a3226;
+    }
+    .plan-title { font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+    .plan-summary { color: #aaa; font-size: 0.925rem; }
+
+    .plan-section {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #e8823f;
+      margin-bottom: 0.75rem;
+    }
+
+    .confidence-scores { display: flex; flex-direction: column; gap: 0.85rem; }
+    .confidence-signal-card {
+      background: #221d16;
+      border: 1px solid #3a3226;
+      border-radius: 8px;
+      padding: 0.75rem 0.85rem;
+    }
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+    }
+    .confidence-signal-title {
+      color: #ccc;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .confidence-signal-level { font-weight: 700; }
+    .confidence-signal-level.label-high { color: #7dcea0; }
+    .confidence-signal-level.label-medium { color: #d4ac6e; }
+    .confidence-signal-level.label-low { color: #e59866; }
+    .confidence-bar {
+      color: #e8823f;
+      letter-spacing: 1px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .confidence-based-on {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.45rem;
+      line-height: 1.45;
+    }
+
+    .plan-list { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+    .plan-list li {
+      font-size: 0.9rem;
+      color: #ccc;
+      padding-left: 1rem;
+      position: relative;
+    }
+    .plan-list li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #e8823f;
+    }
+    .risks-list li::before { color: #e8654f; }
+
+    .milestones-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+    .milestone-card {
+      background: #221d16;
+      border: 1px solid #3a3226;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+    .milestone-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .milestone-day {
+      background: #e8823f;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .milestone-title { font-weight: 600; font-size: 0.9rem; color: #e0e0e0; }
+    .milestone-tasks { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+    .milestone-tasks li {
+      font-size: 0.85rem;
+      color: #aaa;
+      padding-left: 1rem;
+      position: relative;
+    }
+    .milestone-tasks li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: #555;
+    }
+
+    .first-step-box {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-left: 4px solid #e8823f;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      color: #e0e0e0;
+    }
+    .first-step-action {
+      font-weight: 500;
+      color: #e0e0e0;
+      line-height: 1.5;
+    }
+    .first-step-capture {
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #3a3226;
+    }
+    .first-step-capture-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 0.45rem;
+    }
+    .first-step-capture-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .first-step-capture-list li {
+      font-size: 0.85rem;
+      color: #bbb;
+      padding-left: 1.2rem;
+      position: relative;
+      line-height: 1.45;
+    }
+    .first-step-capture-list li::before {
+      content: '☐';
+      position: absolute;
+      left: 0;
+      color: #e8823f;
+      font-size: 0.8rem;
+    }
+
+    .outcome-feedback-question {
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-bottom: 0.75rem;
+    }
+    .outcome-feedback-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .outcome-feedback-btn {
+      background: #221d16;
+      color: #e0e0e0;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 0.45rem 0.9rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .outcome-feedback-btn:hover:not(:disabled) {
+      background: #222;
+      border-color: #e8823f;
+    }
+    .outcome-feedback-btn:disabled { opacity: 0.55; cursor: default; }
+    .outcome-feedback-thanks {
+      font-size: 0.875rem;
+      color: #aaa;
+    }
+    .outcome-feedback-stats {
+      margin-top: 0.65rem;
+      font-size: 0.8rem;
+      color: #9c9388;
+    }
+
+    #stress-test-section { margin-top: 1.5rem; }
+    .ai-concern-card {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-left: 4px solid #ff9f43;
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+    }
+    .ai-concern-header { margin-bottom: 0.75rem; }
+    .ai-concern-label { font-weight: 700; font-size: 0.95rem; color: #ff9f43; }
+    .ai-concern-statement {
+      font-size: 0.925rem;
+      color: #e0e0e0;
+      line-height: 1.5;
+      margin-bottom: 0.85rem;
+    }
+    .ai-concern-prompt {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-bottom: 0.65rem;
+    }
+    .concern-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+    .concern-option-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+      background: #221d16;
+      color: #e0e0e0;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .concern-option-btn:hover {
+      background: #222;
+      border-color: #ff9f43;
+    }
+    .concern-option-label { font-size: 0.9rem; font-weight: 600; color: #fff; }
+    .concern-option-desc { font-size: 0.8rem; color: #999; line-height: 1.4; }
+    .reference-profile-caption {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: #888;
+      font-style: italic;
+    }
+
+    .ai-pipeline-card {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-left: 4px solid #7c5cff;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+    }
+    .pipeline-rows { display: flex; flex-direction: column; gap: 0.65rem; }
+    .pipeline-row { display: flex; flex-direction: column; gap: 0.15rem; }
+    .pipeline-key {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #7c5cff;
+    }
+    .pipeline-val { font-size: 0.9rem; color: #ccc; line-height: 1.45; }
+    .why-ai-card, .impact-card {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+    }
+    .why-ai-text, .impact-text {
+      font-size: 0.925rem;
+      color: #ccc;
+      line-height: 1.5;
+    }
+    .cost-note {
+      margin-top: 0.65rem;
+      font-size: 0.8rem;
+      color: #888;
+      font-style: italic;
+    }
+    .stress-test-card {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-left: 4px solid #888;
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+    }
+    .stress-test-card.verdict-survive { border-left-color: #4caf50; }
+    .stress-test-card.verdict-pivot { border-left-color: #ffc107; }
+    .stress-test-card.verdict-kill { border-left-color: #f44336; }
+
+    .stress-test-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .stress-test-label { font-weight: 700; font-size: 0.95rem; color: #fff; }
+    .verdict-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+    }
+    .verdict-badge.verdict-survive { background: #1a3a1a; color: #4caf50; }
+    .verdict-badge.verdict-pivot { background: #3a2f0a; color: #ffc107; }
+    .verdict-badge.verdict-kill { background: #3a1a1a; color: #f44336; }
+
+    .stress-test-rows { display: flex; flex-direction: column; gap: 0.75rem; }
+    .stress-row { display: flex; flex-direction: column; gap: 0.2rem; }
+    .stress-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #c9a173;
+    }
+    .stress-value { font-size: 0.9rem; color: #ccc; }
+    .verdict-reason {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid #3a3226;
+      font-size: 0.875rem;
+      color: #aaa;
+      font-style: italic;
+    }
+    .stress-error {
+      color: #f44336;
+      font-size: 0.875rem;
+      padding: 1rem;
+      background: #1f1b15;
+      border-radius: 8px;
+      border: 1px solid #3a3226;
+    }
+    .stress-disclaimer {
+      margin-top: 0.85rem;
+      padding: 0.65rem 0.75rem;
+      background: #221d16;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #888;
+      font-style: normal;
+    }
+
+    .reference-profile-card {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-left: 4px solid #7c5cff;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+    }
+    .reference-category {
+      font-size: 0.85rem;
+      color: #bbb;
+      margin-bottom: 0.75rem;
+    }
+    .reference-category strong { color: #fff; }
+    .reference-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.35rem; }
+    .reference-list li {
+      font-size: 0.875rem;
+      color: #ccc;
+      padding-left: 1.35rem;
+      position: relative;
+    }
+    .reference-list.success li::before { content: '✓'; position: absolute; left: 0; color: #4caf50; }
+    .reference-list.failure li::before { content: '✕'; position: absolute; left: 0; color: #e8654f; }
+    .reference-validation-bar {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #3a3226;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+    .reference-validation-bar em { color: #888; font-style: italic; }
+
+    .reason-chain-card {
+      background: #221d16;
+      border: 1px solid #3a3226;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .reason-chain-card.risk-card { border-left: 3px solid #e8654f; }
+    .reason-chain-card.assumption-card { border-left: 3px solid #e8823f; }
+    .reason-chain-cards { display: flex; flex-direction: column; gap: 0.65rem; }
+    .reason-chain-headline { font-size: 0.925rem; font-weight: 600; color: #e8e8e8; }
+    .reason-chain-row { display: flex; flex-direction: column; gap: 0.15rem; }
+    .reason-chain-key {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #c9a173;
+    }
+    .reason-chain-val { font-size: 0.85rem; color: #bbb; }
+
+    .confidence-label-line {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.35rem;
+      padding-left: 0.15rem;
+      line-height: 1.4;
+    }
+    .confidence-label-line.label-high { color: #7dcea0; }
+    .confidence-label-line.label-low { color: #e59866; }
+
+    .session-adjustment-note {
+      font-size: 0.78rem;
+      color: #9c9388;
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+
+    .stress-followup {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #3a3226;
+    }
+    .stress-followup-question { font-size: 0.875rem; color: #ccc; margin-bottom: 0.65rem; }
+    .stress-followup-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .stress-followup-btn {
+      background: #221d16;
+      color: #e0e0e0;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 0.4rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .stress-followup-btn:hover { border-color: #ff9f43; }
+    .stress-followup-thanks { font-size: 0.8rem; color: #888; margin-top: 0.5rem; }
+
+    .decision-lock-section {
+      background: #1f1b15;
+      border: 1px solid #3a3226;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .decision-lock-title { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 0.4rem; }
+    .decision-lock-desc { font-size: 0.875rem; color: #999; margin-bottom: 1rem; line-height: 1.45; }
+    .decision-buttons { display: flex; flex-direction: column; gap: 0.65rem; }
+    .decision-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+      background: #221d16;
+      color: #e0e0e0;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .decision-build:hover { border-color: #e8823f; background: #0e1520; }
+    .decision-pivot:hover { border-color: #ff9f43; background: #1a1205; }
+    .decision-drop:hover { border-color: #e8654f; background: #1a0808; }
+    .decision-btn-label { font-size: 0.9rem; font-weight: 700; }
+    .decision-build .decision-btn-label { color: #e8823f; }
+    .decision-pivot .decision-btn-label { color: #ff9f43; }
+    .decision-drop .decision-btn-label { color: #e8654f; }
+    .decision-btn-desc { font-size: 0.8rem; color: #888; line-height: 1.4; }
+
+    .validation-threshold-section { border-left: 4px solid #ff9f43 !important; }
+    .validation-threshold-box { background: #221d16; border-radius: 6px; padding: 0.75rem 0.85rem; }
+    .validation-threshold-text { font-size: 0.9rem; color: #e0e0e0; line-height: 1.55; }
+
+    .msg-list { margin: 0.35rem 0 0.35rem 1.1rem; padding: 0; list-style: disc; }
+    .msg-list li { margin-bottom: 0.3rem; line-height: 1.5; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a3226; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+    /* API key modal */
+    #api-key-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    #api-key-overlay.hidden { display: none; }
+    #api-key-box {
+      background: #1f1b15; border: 1px solid #3a3226; border-radius: 10px;
+      padding: 1.75rem; max-width: 420px; width: 90%; color: #e8e8e8;
+    }
+    #api-key-box h2 { margin: 0 0 0.5rem; font-size: 1.15rem; color: #fff; }
+    #api-key-box p { font-size: 0.85rem; color: #aaa; line-height: 1.4; margin: 0 0 1rem; }
+    #api-key-box a { color: #e8823f; }
+    #api-key-input {
+      width: 100%; box-sizing: border-box; background: #161310; color: #e8e8e8;
+      border: 1px solid #3a3226; border-radius: 6px; padding: 0.6rem 0.75rem;
+      font-size: 0.9rem; margin-bottom: 0.85rem;
+    }
+    #api-key-input:focus { border-color: #e8823f; outline: none; }
+    #api-key-save-btn {
+      background: #e8823f; color: #fff; border: none; border-radius: 6px;
+      padding: 0.55rem 1.1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    #api-key-save-btn:hover { background: #d9722f; }
+    #api-key-error { color: #e85f5f; font-size: 0.8rem; margin-top: 0.6rem; display: none; }
+    #change-key-btn {
+      background: transparent; color: #888; border: 1px solid #3a3226; border-radius: 6px;
+      font-size: 0.75rem; padding: 0.3rem 0.6rem; cursor: pointer; margin-top: 0.3rem;
+    }
+    #change-key-btn:hover { color: #e8823f; border-color: #e8823f; }
+  </style>
+</head>
+<body>
+  <div id="api-key-overlay" class="hidden">
+    <div id="api-key-box">
+      <h2>Enter your Gemini API key</h2>
+      <p>IdeaForge calls the Google Gemini API directly from your browser, so it needs your own key to run. Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> — it's only stored in your browser, never sent anywhere else.</p>
+      <input id="api-key-input" type="password" placeholder="Paste your Gemini API key here" autocomplete="off" />
+      <div><button id="api-key-save-btn">Save and continue</button></div>
+      <p id="api-key-error">Please enter a key before continuing.</p>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="panel chat-panel">
+      <header class="chat-header">
+        <h1 class="logo">⚡ IdeaForge</h1>
+        <p class="tagline">Zero-to-One Builder</p>
+        <button id="change-key-btn" title="Update your Gemini API key">🔑 API Key</button>
+      </header>
+      <div id="chat-messages" class="chat-messages"></div>
+      <footer class="chat-input-area">
+        <textarea id="message-input" placeholder="Describe your idea…" rows="2"></textarea>
+        <button id="send-btn" class="send-btn">Send</button>
+      </footer>
+    </aside>
+
+    <main class="panel plan-panel">
+      <header class="plan-toolbar">
+        <h2 class="plan-toolbar-title">Execution Plan</h2>
+        <button id="stress-test-btn" class="stress-test-btn" hidden>🔥 Challenge My Idea</button>
+      </header>
+      <div class="plan-scroll">
+        <div id="plan-panel"></div>
+        <div id="stress-test-section"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_KEY_STORAGE = 'ideaforge_gemini_key';
+    let GEMINI_API_KEY = localStorage.getItem(API_KEY_STORAGE) || '';
+    const GEMINI_MODEL = 'gemini-2.5-flash'; 
+
+    function showApiKeyModal() {
+      document.getElementById('api-key-overlay').classList.remove('hidden');
+      document.getElementById('api-key-input').value = '';
+      document.getElementById('api-key-error').style.display = 'none';
+      document.getElementById('api-key-input').focus();
+    }
+
+    function hideApiKeyModal() {
+      document.getElementById('api-key-overlay').classList.add('hidden');
+    }
+
+    function saveApiKeyFromModal() {
+      const val = document.getElementById('api-key-input').value.trim();
+      if (!val) {
+        document.getElementById('api-key-error').style.display = 'block';
+        return;
+      }
+      GEMINI_API_KEY = val;
+      localStorage.setItem(API_KEY_STORAGE, val);
+      hideApiKeyModal();
+    }
+
+    document.getElementById('api-key-save-btn').addEventListener('click', saveApiKeyFromModal);
+    document.getElementById('api-key-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveApiKeyFromModal();
+    });
+    document.getElementById('change-key-btn').addEventListener('click', showApiKeyModal);
+
+    if (!GEMINI_API_KEY) {
+      showApiKeyModal();
+    }
+
+    if (!GEMINI_API_KEY) {
+      console.warn('No Gemini API key set yet — the modal will prompt for one.');
+    }
+
+    const SYSTEM_PROMPT = `You are IdeaForge, a Zero-to-One Builder coach aligned with USAII Global AI Hackathon Direction B judging criteria. Your job is to help users turn vague ideas into structured 30/60/90-day execution plans grounded in auditable reasoning — prioritizing reasoning quality over output volume.
+
+Overall goal: behave like an expert startup advisor evaluating assumptions — pushing back, asking narrowing questions, refusing to generate plans on vague input — NOT like a task generator that produces a plan from anything typed into it.
+
+Personality: direct, sharp, no fluff. Cut through ambiguity. Challenge weak thinking. Be constructive but honest.
+
+Formatting (applies to all conversational prose, NOT the JSON blocks):
+- For any response listing multiple items (assumptions, risks, multiple questions), use a short bold header with one relevant emoji for each item or section, on its own line, before the content — e.g. "**🎯 Assumption 1: [short label]**" followed by the explanation, rather than running everything together in one paragraph.
+- Pick emoji that genuinely fit the content's meaning, not decoration — e.g. ⚠️ for a risk or concern, 🎯 for a target/problem statement, 🧩 for an assumption, 💡 for an AI capability or insight, 🚩 for a red flag.
+- Keep headers short (2-5 words). The detailed explanation goes in normal text below the header, not crammed into the header itself.
+- This applies to your own conversational text (clarifying questions, assumption/risk lists, closing summaries) — it does NOT apply to anything inside the JSON blocks (referenceProfile, plan), which are already structured and rendered separately by the app's UI.
+- Don't overdo it — one header per distinct item/section is enough, not multiple headers within a single short paragraph.
+
+No fabricated precision:
+- Do NOT state specific numeric claims (percentages, dollar figures, probabilities) about real-world outcomes unless they are clearly framed as illustrative estimates, not facts.
+- Never invent statistics or cite precise figures that sound researched when they are not.
+- Use hedging language instead — e.g. "could meaningfully shrink your window" rather than "cuts opportunity by 50%."
+- If a number is genuinely useful for the user to visualize (like a rough cost estimate), explicitly label it as a rough estimate — never state it as a researched fact.
+
+Human-in-the-loop decisions:
+- Never flatly decide a real-world action FOR the user (build vs. not build, quit vs. continue, launch vs. wait, etc.).
+- Give your honest, direct recommendation with clear reasoning — stay opinionated, not wishy-washy.
+- Always explicitly hand the final call back to the user.
+- The user stays in control of real-world decisions; you advise, they decide.
+- This rule applies to real-world STRATEGIC decisions only (whether to build, pivot, drop, launch, or take a specific real-world action) — it does NOT mean refusing basic informational help. If the user asks a factual question like "who are some competitors in this space," "what does X tool already do," or similar requests for general knowledge or context, answer directly and helpfully. Naming known market players, sharing general industry context, or giving examples is coaching support, not deciding for the user — the user still decides what to do with that information. Be consistent: if you have already named specific competitors elsewhere in this conversation (e.g. in a generated plan), do not refuse to name them again if asked directly.
+
+AI concern flag (human-in-the-loop — required when a major red flag surfaces):
+When your reasoning surfaces a significant red flag (e.g. unclear differentiation, idea is a near-clone of an existing dominant product, no real problem identified), do NOT silently proceed or silently refuse. State the concern plainly in prose, then output an aiConcern JSON block and WAIT for the user to choose before advancing to reference_profile or plan.
+\`\`\`json
+{
+  "type": "aiConcern",
+  "concern": "plain statement of the issue, e.g. 'Your differentiation from [existing product] isn't clear yet'",
+  "options": [
+    { "label": "Continue anyway", "description": "Proceed to the plan as-is; you can validate differentiation later" },
+    { "label": "Pivot the idea", "description": "Go back and narrow or change the core concept before planning" },
+    { "label": "Test the assumption first", "description": "Get a smaller first step focused only on resolving this concern" }
+  ]
+}
+\`\`\`
+- Do NOT output referenceProfile or plan JSON in the same message as aiConcern.
+- After the user picks an option, honor their choice in your next response.
+
+Responsible AI (hard constraint — every plan, stress test, and confidence explanation):
+- Never claim certainty. Never say an idea "will succeed" or "will fail."
+- Always frame outputs as decision support, not predictions.
+- Use hedging: "could," "might," "signals suggest," "worth testing" — not "this will work."
+
+Target user specificity gate (hard constraint — blocks plan generation):
+- Do NOT generate a plan (no plan JSON, no referenceProfile that precedes a rushed plan) until the user has named ALL THREE:
+  (1) a specific group — not a bare noun
+  (2) a real situation/problem they face
+  (3) a reason they are affected by it (cause)
+- HIGH specificity (proceed toward plan): "CS undergrads in Pakistan applying for remote internships but lacking employer signals" — has group + situation + cause
+- LOW specificity (ask a narrowing question instead — ONE question only, no plan): "students", "people", "everyone", "small businesses" — no situation or cause attached
+- If target user is vague, your next message MUST be a single narrowing question (e.g. "Who specifically — what makes this group different from anyone else with this problem?"), NOT a plan.
+
+Problem clarity gate (hard constraint — blocks scoring as clear):
+- The +25 "specific problem/pain point" signal requires ALL THREE in the user's description:
+  (1) current behavior — what people do today
+  (2) failure point — where it breaks down
+  (3) consequence — what it costs them
+- WEAK (do not treat as clear): "Students need internships"
+- STRONG (treat as clear): "Students apply randomly because they can't tell if their skills match a role, causing wasted applications and low confidence"
+- If any of the three is missing, ask ONE follow-up targeting the missing piece before treating the problem as clear or advancing to plan.
+
+Workflow — 6-stage flow (strict order; never skip ahead):
+Work through these stages across multiple turns. Stay conversational. Advance only when the current stage's goal is met.
+
+Stage 1 — idea_capture: User shares an idea. Acknowledge it and reflect back what you heard. Do NOT output JSON.
+Stage 2 — clarification: Ask 1-2 sharp questions to sharpen problem, audience, and scope. Wait for answers. Do NOT output JSON.
+  MANDATORY AI differentiation check (additive — do not replace your Socratic drill-down): explicitly ask yourself, and surface to the user if the answer is weak: "What is the AI specifically doing here that a normal form, spreadsheet, or existing tool (Google Business Profile, Linktree, Shopify admin) couldn't already do?" If the idea sounds like a CRUD dashboard or info centralizer with no real AI job, ask the user to name ONE concrete AI capability (pattern detection, prediction, automated generation, anomaly flagging, etc.) — alongside your other clarifying questions, not instead of them.
+Stage 3 — assumption_surfacing: Name 2-4 key assumptions (forward-looking beliefs). Each assumption MUST be specific, necessary for the idea to succeed, and testable. Reject and regenerate any assumption that's generic or untestable. Include at least one assumption about the named AI capability (what the model does that rules/forms cannot). If no clear AI differentiator emerged in Stage 2, surface that gap explicitly as an assumption to validate — do not pretend AI is doing work it isn't.
+  GOOD: "Students will trust AI-generated skill gap feedback enough to change what roles they apply for" — specific, testable, necessary
+  BAD: "People want this" — vague, not testable, not tied to the idea
+  Ask if any feel wrong or missing. Wait for user response. Do NOT output JSON.
+Stage 4 — risk_analysis: Name 2-4 specific risks — failure scenarios if assumptions are wrong; each tied to an assumption. REJECT generic, idea-agnostic risks. Each risk MUST explain a specific consequence tied to THIS idea.
+  MANDATORY Responsible AI risks: always include at least 1-2 risks tied to the specific AI capability named in Stages 2-3 — NOT generic business risks. Use this pattern:
+  Risk: [AI could push incorrect data / misrepresent an item / over-flag a false pattern / hallucinate a recommendation]
+  Mitigation: [specific control — e.g. "owner approval required before any auto-generated update publishes"]
+  If no AI capability was named and you can only produce generic market risks, you MUST include: "Risk: no clear AI differentiator — solution may read as a feature, not a system" and prompt the user to name ONE concrete AI capability before moving to plan. Flag inability to produce AI-specific risks as a gap — do not silently skip.
+  REJECT: "competition", "marketing is hard", "funding" — generic, could apply to any idea
+  REQUIRE: risk explains a specific consequence tied to THIS idea
+  Example: "If students ignore the feedback layer and only use job listings, the product becomes a weaker version of existing platforms"
+  Ask what worries them most. Wait for user response. Do NOT output JSON.
+Stage 5 — reference_profile: Output a referenceProfile JSON block — structured reasoning criteria the system will compare the user's situation against. This is NOT a prediction of success and does NOT mean the AI "knows" what works. Frame it humbly: "The system compares your situation against structured reasoning criteria." Brief conversational intro only (1-2 sentences) before the JSON.
+Stage 6 — plan: Output the plan JSON block. Your conversational text before the JSON should be a brief closing paragraph (3-5 sentences) explaining the PRE-CALCULATED confidence scores you are given — do NOT invent or override those numbers.
+  MANDATORY — validationThreshold field (never skip): You MUST populate the validationThreshold field with one concrete, idea-specific numeric threshold tailored to the specific audience and problem discussed. If you skip or leave this blank, the plan is incomplete. Never use a generic template — calibrate numbers to this specific conversation.
+  MANDATORY — market risk self-consistency (hard check): Before finalizing the plan JSON, review every risk you have listed. If any risk explicitly describes weak differentiation, undifferentiated value, unclear value proposition, or the solution being a weaker version of a competitor, you MUST NOT describe differentiation as "clear" anywhere in your text or reasoning. Use "differentiation not yet demonstrated" or "competitors named but differentiation unproven" instead.
+
+Decision gate — BUILD / PIVOT / DROP (required response rules):
+After Stage 5 (reference_profile), the user will be shown three explicit choices. Their message will start with one of these keywords:
+- "BUILD": Proceed directly to Stage 6 — output the plan JSON. Do not ask further questions; generate the execution plan now.
+- "PIVOT": Do NOT output plan JSON. Instead, acknowledge the pivot decision, then ask one focused question about what aspect of the solution should change. Loop back toward Stage 2/3 (clarification or assumption_surfacing). Tag accordingly.
+- "DROP": Do NOT output plan JSON. Acknowledge that the problem isn't validated enough to build yet, affirm that dropping an unvalidated idea is the right call, and offer 1-2 brief thoughts on what a better-validated problem might look like. End the session gracefully — no roadmap.
+
+Hidden stage tags (required on EVERY assistant message):
+- End each message with exactly one tag on its own last line: [STAGE:idea_capture] | [STAGE:clarification] | [STAGE:assumption_surfacing] | [STAGE:risk_analysis] | [STAGE:reference_profile] | [STAGE:plan]
+- The tag must match the stage you are working in this turn. No text after the tag.
+- Never output referenceProfile JSON unless tag is [STAGE:reference_profile].
+- Never output plan JSON unless tag is [STAGE:plan] AND stages 2–5 have already happened with user participation AND target user has group+situation+cause AND problem has behavior+failure+consequence.
+- Do not fabricate assumptions/risks only inside JSON; they must have been surfaced in chat during stages 3–4.
+
+Pre-calculated confidence scores:
+- You will be given pre-calculated confidence scores before the plan stage. Do not change them. Do not invent different numbers. Your job is only to explain what they mean in prose.
+- Do NOT include confidence or confidenceLabels in your plan JSON — the app computes those deterministically.
+
+Reference profile JSON (stage 5 only):
+The referenceProfile compares the user's situation against structured reasoning criteria — not predictions of outcome. Do NOT frame this as the AI knowing successful startup patterns.
+\`\`\`json
+{
+  "type": "referenceProfile",
+  "ideaCategory": "string — e.g. 'consumer mobile app', 'B2B SaaS tool', 'content/creator business'",
+  "successPatterns": ["reasoning criterion 1", "reasoning criterion 2", "reasoning criterion 3"],
+  "commonFailureModes": ["common reasoning gap 1", "common reasoning gap 2"],
+  "typicalValidationBar": "1-2 sentences — general pattern for what evidence is usually checked in this category; explicitly labeled as a reasoning pattern, not a prediction of outcome. Do NOT claim the user already did interviews, trials, or validation unless they explicitly reported that in this conversation.",
+  "competitiveContext": {
+    "competitorsDiscussed": "boolean — true if ANY named competitor (in any region, industry, or language) has come up in this conversation, whether named by the user OR by you from your own general knowledge",
+    "namedExamples": ["array of specific company/product names — include names you know from your own training if they genuinely compete in this space, even if the user did not name them"],
+    "differentiationClear": "boolean — true only if a clearly demonstrated, specific advantage over those named options has been articulated; false if vague, unproven, or not yet stated"
+  }
+}
+\`\`\`
+
+competitiveContext rule (applies to BOTH referenceProfile and plan JSON):
+- Use your own general knowledge of global and regional markets — do not wait for the user to name a specific competitor. If you recognize that the described idea overlaps with known products or companies (in any country, industry, or language), populate namedExamples with those names even if the user did not mention them.
+- If the user's market is regional (e.g. Pakistan, India, Southeast Asia, MENA, Africa), name the dominant local players in that space from your training knowledge.
+- differentiationClear must be false whenever the differentiation from named options has not been explicitly and specifically stated — defaulting to false is safer than guessing true.
+
+Plan JSON (stage 6 only):
+Do NOT proceed to plan if no clear AI differentiator was named AND the user has not acknowledged the "no clear AI differentiator" risk from Stage 4 — unless they chose "Continue anyway" via aiConcern.
+\`\`\`json
+{
+  "type": "plan",
+  "ideaTitle": "string — if a real AI differentiator exists, prefer system framing: 'an AI system that monitors, diagnoses, and fixes X' over 'a tool that manages X'; if no real differentiator, do not fake system language",
+  "summary": "string — 2-3 sentences with sharp causal impact framing (e.g. 'outdated hours data directly reduces walk-in conversion'). Any number must carry (estimated) or (illustrative) tag — never present invented stats as measured fact",
+  "impactStatement": "string — 1-2 sentences: sharp causal chain from problem to business/user outcome. Quantified estimates OK only with explicit (estimated) or (illustrative) tags",
+  "whyAi": "string — REQUIRED 1-2 sentences: why can't this be a manual/rules-based tool instead? Reject vague answers like 'AI helps users.' GOOD: 'Manual cross-checking across N platforms is too error-prone/slow for owners; AI is needed to detect the mismatch and predict the impact automatically.'",
+  "aiPipeline": {
+    "input": "what data/signal comes in",
+    "aiProcess": "what the model specifically does — detect / predict / generate / flag",
+    "output": "what changes for the user as a result"
+  },
+  "assumptions": [
+    {
+      "assumption": "string — forward-looking belief",
+      "basedOn": "string — what the user said (or didn't say) that supports this",
+      "referenceCheck": "string — how this connects to a successPattern or failure mode from referenceProfile",
+      "ifWrong": "string — concrete pivot or consequence if this fails"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "string — specific failure scenario; include AI-specific risks where applicable",
+      "mitigation": "string — specific control for AI/responsible-AI risks (e.g. human approval before publish); empty string if not applicable",
+      "basedOn": "string — evidence from the conversation",
+      "referenceCheck": "string — ties to referenceProfile pattern",
+      "ifWrong": "string — what changes if this risk materializes"
+    }
+  ],
+  "validationThreshold": "REQUIRED — one concrete, idea-specific numeric threshold the user should test before proceeding to build. Base it on the specific problem, audience, and context of this conversation — never copy a template verbatim. Pattern: 'Treat the problem as validated if [N]+ out of [M] interviews independently describe [specific pain] unprompted, OR if [X]%+ explicitly say they would pay [or take a specific action] to fix it. Below that, treat as unvalidated and do not proceed to building.' Calibrate N, M, and X to the audience size and accessibility described in this session.",
+  "milestones": [
+    { "day": "1-30", "title": "string", "tasks": ["string"] },
+    { "day": "31-60", "title": "string", "tasks": ["string"] },
+    { "day": "61-90", "title": "string", "tasks": ["string"] }
+  ],
+  "firstStep": {
+    "action": "the 24-48hr action, near-zero cost, produces evidence — include specific person/group, action, and place to record output",
+    "captureAfter": [
+      "idea-specific question: did they describe the same pain unprompted?",
+      "idea-specific question: what are they currently doing instead?",
+      "idea-specific question: would they actually use this if it existed?"
+    ]
+  },
+  "costNote": "string — optional 1 sentence on near-zero cost to run the first step / early validation (tag any dollar figure as (estimated))",
+  "competitiveContext": {
+    "competitorsDiscussed": "boolean — true if ANY named competitor (in any region, industry, or language) has come up in this conversation, whether named by the user OR by you from your own general knowledge",
+    "namedExamples": ["array of specific company/product names — include names you know from your own training if they genuinely compete in this space, even if the user did not name them"],
+    "differentiationClear": "boolean — true only if a clearly demonstrated, specific advantage over those named options has been articulated; false if vague, unproven, or not yet stated"
+  }
+}
+\`\`\`
+
+AI PIPELINE block (mandatory in plan JSON — same tier as milestones):
+- aiPipeline.input, aiPipeline.aiProcess, aiPipeline.output are all required.
+- aiProcess must name a concrete AI job (detect / predict / generate / flag) — not "uses AI."
+
+WHY_AI field (mandatory):
+- whyAi must answer why manual/rules-based tools are insufficient — with specificity tied to THIS idea.
+
+Impact framing (mandatory):
+- impactStatement uses sharp causal chains, not soft hedging ("might miss info"). Numbers only with (estimated) or (illustrative).
+
+Assumptions vs. Risks (keep distinct):
+- Assumptions = forward-looking beliefs the user is treating as true for the plan to work. Each must be specific, necessary, and testable (see Stage 3 bar).
+- Risks = specific failure scenarios if those assumptions turn out wrong — not restated assumptions. Reject generic risks (see Stage 4 bar).
+- Every risk must map back to at least one assumption (explicit or implicit in the reason chain).
+
+First Step constraints (hard requirement):
+- action must satisfy all three: achievable within 24-48 hours, costs near zero, produces real evidence (not research/reading)
+- GOOD action: "Interview 5 CS students and ask them to show their last 5 internship applications. Record why they applied."
+- BAD action: "Research the market." — vague, no timeframe, produces no evidence
+- captureAfter: exactly 3 short evidence-capture questions tailored to THIS idea (not generic copy-paste). Keep the spirit: (1) unprompted pain confirmation, (2) current workaround/behavior, (3) willingness to use — but phrase each for the specific idea.
+
+System language pass (plan output only):
+- If a real AI differentiator was named in conversation, frame the idea as a system ("an AI system that monitors, diagnoses, and fixes X") not a dashboard/feature wrapper.
+- If no real AI differentiator exists, do NOT apply system language — that would be its own kind of fabrication.
+
+Each milestone should have 3-5 concrete, actionable tasks.`;
+
+    function STRESS_TEST_PROMPT(planContext) {
+      return `You are an evidence-gap analyst for startup ideas. Your ONLY job: identify the single biggest unvalidated assumption in this plan and state what evidence would resolve it.
+
+Responsible AI (hard constraint):
+- Do NOT predict success or failure. Never say an idea "will succeed" or "will fail."
+- Do NOT tell the user to quit, continue, or pivot their life decision.
+- Frame everything as decision support around missing evidence — not guaranteed predictions.
+
+Plan to analyze:
+${planContext}
+
+Output ONLY a JSON block wrapped in \`\`\`json fences — no other text:
+{
+  "type": "stressTest",
+  "biggestWeakness": "string — the weakest unvalidated link, stated as a gap not a judgment",
+  "hiddenAssumption": "string — the core assumption that remains unproven",
+  "evidenceNeeded": "string — specific evidence that would resolve this gap",
+  "ifFalse": "string — what would need to change if the assumption fails (consequence, not prediction)",
+  "verdict": "survive" | "pivot" | "kill",
+  "verdictReason": "string — 1-2 sentences framed ONLY around what evidence is missing and what to gather next; never 'this idea will fail' or 'you should quit'",
+  "disclaimer": "These are reasoning inputs, not a guaranteed prediction."
+}
+
+Note: verdict is an internal severity tag for the evidence gap (survive=testable gap, pivot=assumption may need reframing, kill=critical unvalidated assumption). Do NOT use it to recommend quitting.`;
+    }
+
+    const conversationHistory = [];
+    let currentPlan = null;
+    let currentReferenceProfile = null;
+    let lastStressTestResult = null;
+    let pendingAiConcern = null;
+    let awaitingDecision = false;
+    const stressTestLog = [];
+    const sessionScoreAdjustments = { problemClarity: 0, userValidation: 0, marketRisk: 0 };
+    const FEEDBACK_STORAGE_KEY = 'ideaforge-outcome-feedback';
+    const STAGES = ['idea_capture', 'clarification', 'assumption_surfacing', 'risk_analysis', 'reference_profile', 'plan'];
+    const PLAN_PREREQUISITES = ['clarification', 'assumption_surfacing', 'risk_analysis', 'reference_profile'];
+    const STAGE_TAG_PATTERN = /\[STAGE:(idea_capture|clarification|assumption_surfacing|risk_analysis|reference_profile|plan)\]/i;
+    const REASONING_DISCLAIMER = 'These are reasoning inputs, not a guaranteed prediction.';
+    const STRESS_DISCLAIMER = REASONING_DISCLAIMER;
+
+    const chatMessages = document.getElementById('chat-messages');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const stressTestBtn = document.getElementById('stress-test-btn');
+    const planPanel = document.getElementById('plan-panel');
+    const stressTestSection = document.getElementById('stress-test-section');
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function renderMarkdownSafe(text) {
+      let safe = escapeHtml(text);
+
+      // Force each confidence signal onto its own line before the line-splitting
+      // pass, so they render as separate paragraphs regardless of model formatting.
+      safe = safe.replace(/(?<!\n)(🎯\s*\*\*Problem Clarity)/g, '\n$1');
+      safe = safe.replace(/(?<!\n)(👥\s*\*\*User Validation)/g, '\n$1');
+      safe = safe.replace(/(?<!\n)(⚠️\s*\*\*Market Risk)/g, '\n$1');
+
+      // Convert bullet lines into <ul>/<li> before bold/italic so leading "*"
+      // list markers don't get consumed by the italic regex.
+      const lines = safe.split('\n');
+      let html = '';
+      let inList = false;
+      for (const line of lines) {
+        const bulletMatch = line.match(/^[\*\-]\s+(.*)/);
+        if (bulletMatch) {
+          if (!inList) { html += '<ul class="msg-list">'; inList = true; }
+          html += `<li>${bulletMatch[1]}</li>`;
+        } else {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += line + '<br>';
+        }
+      }
+      if (inList) html += '</ul>';
+
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+      return html;
+    }
+
+    function wordCount(text) {
+      return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+    }
+
+    function isVagueAnswer(text) {
+      const t = String(text || '').trim();
+      return wordCount(t) <= 3 || /^(yes|no|maybe|not sure|idk|i don't know|ok|sure|yep|nope)$/i.test(t);
+    }
+
+    function extractConversationData(messages) {
+      const userMsgs = messages.filter(m => m.role === 'user');
+      const allUser = userMsgs.map(m => m.content).join('\n');
+      const allUserLower = allUser.toLowerCase();
+      const allLower = messages.map(m => m.content).join('\n').toLowerCase();
+      const allText = messages.map(m => m.content).join('\n');
+
+      const vagueAudienceNouns = /\b(students?|people|everyone|everybody|small businesses?|users?|customers?|folks|anyone)\b/i;
+      const namedGroupSignals = /\b(cs\s+undergrads?|undergrads?|freelancers?|founders?|parents|nurses|developers|engineers|cmos?|teachers|creators|influencers|homeowners|renters|patients|clinicians|shop owners|restaurant owners|interns?|job seekers?|bootcamp|graduates?|\d+\s*(year|yo)[\s-]*old)\b/i;
+      const groupWithContext = /\b(for|targeting|helping|building for)\s+[\w\s]{3,50}/i;
+      const geoOrNiche = /\b(in\s+(pakistan|india|nigeria|africa|europe|silicon valley|remote)|first-time|early-stage|solo|b2b|enterprise|smb)\b/i;
+
+      const behaviorSignals = /\b(apply|applying|use|using|try|trying|send|sending|search|searching|post|posting|rely|relying|default to|currently|today|every day|habitually|randomly|blindly|manually|keep doing)\b/i;
+      const situationSignals = /\b(applying for|applying to|trying to|looking for|searching for|struggling with|working as|who are|when they|during|while|facing|dealing with|navigating|competing for|need(?:ing)?\s+(?:to|a)|lacking|busy|heads-down|head-down|rely(?:ing)? on|depend(?:ing)? on|juggling|balancing|responsible for|in charge of|running|managing|spend(?:ing)?\s+(?:most of|a lot of|hours?)|don't have (?:time|a)|do not have (?:time|a)|no time (?:to|for)|too (?:busy|swamped)|find(?:s)? themselves|end up|focused on|prioritiz)\b/i;
+      const causeSignals = /\b(because|since|due to|lacking|without\s+(?:any|enough|clear)|can't tell|cannot tell|no\s+(?:way|signal|visibility|feedback)|don't have|do not have|missing|which (?:means|leaves)|so they|but (?:they|there's|there is)|yet (?:they|no)|making it|leaving them|affected by|held back by|causing)\b/i;
+
+      const hasNamedGroup = (
+        namedGroupSignals.test(allUser) ||
+        geoOrNiche.test(allUser) ||
+        groupWithContext.test(allUser) ||
+        (wordCount(allUser) >= 12 && /\b(in|for|who)\s+\w+/i.test(allUser) && !/^(students?|people|everyone|everybody|small businesses?)\s*$/i.test(allUser.trim()))
+      );
+      const hasSituation = situationSignals.test(allUser) ||
+        (behaviorSignals.test(allUser) && hasNamedGroup && wordCount(allUser) >= 20);
+      const hasCause = causeSignals.test(allUser);
+      const isVagueAudienceOnly = (
+        vagueAudienceNouns.test(allUser) &&
+        !hasSituation &&
+        !hasCause &&
+        wordCount(allUser) < 18 &&
+        !namedGroupSignals.test(allUser)
+      );
+      const hasSpecificTargetUser = hasNamedGroup && hasSituation && hasCause && !isVagueAudienceOnly;
+
+      const failureSignals = /\b(breaks? down|fails?|can't tell|cannot tell|doesn't work|does not work|no way to|stuck|bottleneck|gap|mismatch|without knowing|don't know if|unclear if|can't see|cannot see|breaks|falls apart|gets lost)\b/i;
+      const consequenceSignals = /\b(waste|wasted|costs?|low confidence|lose|losing|miss(?:ing)? out|churn|drop|hours|money|rejected|frustrat|anxiety|stress|give up|abandon|inefficient|slow|painful)\b/i;
+
+      const hasBehavior = behaviorSignals.test(allUser);
+      const hasFailurePoint = failureSignals.test(allUser);
+      const hasConsequence = consequenceSignals.test(allUser);
+      const hasSpecificPain = hasBehavior && hasFailurePoint && hasConsequence;
+
+      const decisionMomentSignals = /\b(decide|decision|whether to|choice|choose|pick|commit|go\/no-go|apply to|invest|pivot|build or|launch or|worth (?:it|building)|will (?:use|trust|pay)|after using)\b/i;
+      const hasDecisionMoment = decisionMomentSignals.test(allUser) || decisionMomentSignals.test(allLower);
+
+      const directConversations = /\b(interviewed?|talked to|spoke with|surveyed|dm'd|dmed|messaged|called|met with|customer discovery|user conversations?|spoke to \d+|talked to \d+|interviewed \d+)\b/i;
+      const realFeedback = /\b(feedback from (?:users|customers|people)|they (?:said|told|mentioned|confirmed|disagreed|loved|hated)|users? (?:said|told|want|don't want|complained)|validated (?:that|with)|learned (?:that|from))\b/i;
+      const tractionSignals = /\b(revenue|signups|waitlist|paying customers|users?\s+(?:using|active)|traction|mvp live|launched|beta users)\b/i;
+      const notValidated = /\b(haven't|have not|not yet|no).{0,40}(valid|talked|interview|spoken|asked|customers|users|feedback)\b/i;
+
+      const namedCompetitors = /\b(notion|slack|airbnb|uber|lyft|stripe|shopify|google|facebook|meta|tiktok|instagram|salesforce|hubspot|monday|asana|figma|canva|linkedin|indeed|handshake|quickbooks|freshbooks|xero|wave|paypal|square|bill\.com|zoho|sage|mailchimp|calendly|doordash|grubhub|instacart|venmo|cashapp|wix|squarespace|woocommerce|etsy|amazon|ebay|zendesk|intercom|trello|jira|github|gitlab|quickbase|freshdesk|toast|clover|competitors? like|alternatives? like|incumbents? like|existing tools? like)\b/i;
+      const diffSignals = /\b(different|unlike|better than|only we|unique|moat|no one else|existing tools don't|stand out|vs\.?|versus|weaker version|differentiated|differentiation)\b/i;
+      const externalDepSignals = /\b(api|platform dependency|rely on (?:google|apple|facebook|meta|tiktok|linkedin|twitter|x|openai)|app store|play store|third.?party|oauth|scraping)\b/i;
+
+      // Secondary fallback: competitive-framing phrase immediately before a capitalized brand-like
+      // word not in the explicit list. Conservative pattern — false positives are worse than misses.
+      const brandFallbackRegex = /\b(?:already\s+(?:has|have|offers?|does)|i['’]?ve\s+seen|similar\s+to|just\s+like|replace[sd]?\s+by)\s+([A-Z][a-zA-Z]{2,20})\b/;
+      const hasBrandFallback = !namedCompetitors.test(allUser) && brandFallbackRegex.test(allText);
+
+      const assumptionMentions = (allText.match(/\b(assume|assuming|assumption|if (?:users|people|they)|believe|hope|expect|probably|might)\b/gi) || []).length;
+      const surfacedAssumptions = [...allText.matchAll(/assumption[s]?:?\s*["']?([^"'\n.]+)/gi)].length;
+
+      const clarifyingAnswers = userMsgs.slice(1);
+      const concreteAnswers = clarifyingAnswers.filter(m => wordCount(m.content) >= 8 && !isVagueAnswer(m.content));
+
+      return {
+        hasSpecificTargetUser,
+        hasNamedGroup,
+        hasSituation,
+        hasCause,
+        isVagueAudienceOnly,
+        hasSpecificPain,
+        hasBehavior,
+        hasFailurePoint,
+        hasConsequence,
+        hasDecisionMoment,
+        hasDirectConversations: directConversations.test(allUserLower),
+        hasRealFeedback: realFeedback.test(allUserLower),
+        hasTraction: tractionSignals.test(allUserLower),
+        hasAnyUserValidation: directConversations.test(allUserLower) || realFeedback.test(allUserLower) || tractionSignals.test(allUserLower),
+        explicitlyNotValidated: notValidated.test(allUserLower),
+        hasNamedCompetitors: namedCompetitors.test(allUser) || /\b(competitors?|incumbents?|alternatives?)\s+(like|such as|including|are)\b/i.test(allUserLower) || hasBrandFallback,
+        hasDifferentiation: diffSignals.test(allUserLower),
+        hasSpecificDifferentiation: diffSignals.test(allUserLower) && (namedCompetitors.test(allUser) || /\bcompet/i.test(allUserLower) || hasBrandFallback),
+        hasExternalDependency: externalDepSignals.test(allLower),
+        unprovenAssumptionCount: Math.max(assumptionMentions, surfacedAssumptions),
+        concreteClarifyingAnswerCount: concreteAnswers.length,
+        backAndForthTurns: Math.min(userMsgs.length, messages.filter(m => m.role === 'assistant').length),
+        clarifyingQuestionCount: clarifyingAnswers.length,
+        vagueAnswerCount: clarifyingAnswers.filter(m => isVagueAnswer(m.content)).length,
+      };
+    }
+
+    function clampScore(n) {
+      return Math.max(0, Math.min(100, Math.round(n)));
+    }
+
+    function calculateConfidenceScores(conversationData, adjustments = {}) {
+      // problemClarity (0-100) — based on:
+      //   - specific user named (group + situation + cause, not just a noun)
+      //   - clear pain point (behavior + failure point + consequence, all three present)
+      //   - clear decision moment (what specifically will the user decide after using this)
+      let problemClarity = 0;
+      if (conversationData.hasSpecificTargetUser) problemClarity += 34;
+      if (conversationData.hasSpecificPain) problemClarity += 33;
+      if (conversationData.hasDecisionMoment) problemClarity += 33;
+
+      // userValidation (0-100) — based on:
+      //   - mentions of actual interviews/conversations with target users
+      //   - real feedback received (not assumed)
+      //   - existing users/traction if any
+      let userValidation = 0;
+      if (conversationData.hasDirectConversations) userValidation += 40;
+      if (conversationData.hasRealFeedback) userValidation += 35;
+      if (conversationData.hasTraction) userValidation += 25;
+      if (conversationData.explicitlyNotValidated) userValidation -= 25;
+
+      // marketRisk (0-100, higher = lower risk) — based on:
+      //   - crowded alternatives named and accounted for (raises score if differentiation is clear, lowers if not)
+      //   - dependency on external platforms/APIs the user doesn't control (lowers score)
+      //   - number of unproven assumptions the idea rests on (more unproven = lower score)
+      let marketRisk = 35;
+      if (conversationData.hasNamedCompetitors) {
+        marketRisk += conversationData.hasSpecificDifferentiation ? 35 : 10;
+      } else {
+        marketRisk += 8;
+      }
+      if (conversationData.hasExternalDependency) marketRisk -= 25;
+      marketRisk -= Math.min(30, conversationData.unprovenAssumptionCount * 8);
+
+      return {
+        problemClarity: clampScore(problemClarity + (adjustments.problemClarity || 0)),
+        userValidation: clampScore(userValidation + (adjustments.userValidation || 0)),
+        marketRisk: clampScore(marketRisk + (adjustments.marketRisk || 0)),
+      };
+    }
+
+    function isNegativeReason(reason) {
+      const r = String(reason || '').toLowerCase();
+      return /\b(still|not yet|unclear|missing|thin|incomplete|unmapped|assumed|no direct|bare noun|vague|without|lack|not described|not articulated|not stated|not named)\b/.test(r);
+    }
+
+    function reconcileSignalLevel(score, criteriaFullyMet, basedOn) {
+      let level = getSignalLevel(score);
+      if (level === 'High' && (!criteriaFullyMet || isNegativeReason(basedOn))) level = 'Medium';
+      if (level === 'Medium' && isNegativeReason(basedOn) && score < 55) level = 'Low';
+      if (isNegativeReason(basedOn) && score < 40) level = 'Low';
+      return level;
+    }
+
+    function detectUndiffSignal(riskTexts) {
+      return (riskTexts || []).some(text => {
+        const t = String(text).toLowerCase();
+        const hasDiffWord = /differentiat/i.test(t);
+        const hasNegativeQualifier = /\b(no clear|not clear|unclear|lack|lacks|insufficient|weak|isn't|is not|struggle)\b/i.test(t);
+        return (hasDiffWord && hasNegativeQualifier)
+          || /weaker version|not differentiated|price sensit|commodit|undifferentiat/i.test(t);
+      });
+    }
+
+    function getConfidenceSignals(scores, conversationData, planRisks, competitiveContext) {
+      const pcParts = [];
+      if (conversationData.hasSpecificTargetUser) pcParts.push('specific target user named');
+      if (conversationData.hasSpecificPain) pcParts.push('clear pain description');
+      if (conversationData.hasDecisionMoment) pcParts.push('clear decision moment');
+
+      let problemBasedOn;
+      if (pcParts.length === 3) {
+        problemBasedOn = pcParts.join(', ');
+      } else if (!conversationData.hasSpecificTargetUser) {
+        problemBasedOn = !conversationData.hasNamedGroup
+          ? 'target user is still a bare noun — need group + situation + cause'
+          : !conversationData.hasSituation
+            ? 'group named but situation not yet specific'
+            : 'group and situation named but cause/reason not yet clear';
+      } else if (!conversationData.hasSpecificPain) {
+        problemBasedOn = !conversationData.hasBehavior
+          ? 'current behavior not described yet'
+          : !conversationData.hasFailurePoint
+            ? 'failure point not yet articulated'
+            : 'consequence/cost to users not yet stated';
+      } else {
+        problemBasedOn = 'decision moment after using the product still unclear';
+      }
+
+      const uvParts = [];
+      if (conversationData.hasDirectConversations) uvParts.push('direct conversations with target users cited');
+      if (conversationData.hasRealFeedback) uvParts.push('real feedback received in-session');
+      if (conversationData.hasTraction) uvParts.push('existing traction reported');
+
+      let userBasedOn;
+      if (conversationData.explicitlyNotValidated) {
+        userBasedOn = 'you noted no validation with real users yet';
+      } else if (uvParts.length) {
+        userBasedOn = uvParts.join(', ');
+      } else {
+        userBasedOn = 'no direct conversations or real feedback from target users mentioned yet';
+      }
+
+      // Scan plan risks for undifferentiation signals.
+      // Also treat model-reported differentiationClear === false as an undiff signal.
+      const riskTexts = (planRisks || []).map(r =>
+        typeof r === 'string' ? r : (r.risk || '') + ' ' + (r.basedOn || '')
+      );
+      const undiffRiskPresent = detectUndiffSignal(riskTexts) || competitiveContext?.differentiationClear === false;
+
+      // Use model-reported competitiveContext as PRIMARY source; regex detection is fallback.
+      const hasNamedCompetitors = competitiveContext?.competitorsDiscussed != null
+        ? competitiveContext.competitorsDiscussed
+        : conversationData.hasNamedCompetitors;
+      const modelDiffClear = competitiveContext?.differentiationClear;
+      const baseDiff = modelDiffClear != null ? modelDiffClear : conversationData.hasSpecificDifferentiation;
+      const effectiveDiff = baseDiff && !undiffRiskPresent;
+
+      const mrParts = [];
+      if (hasNamedCompetitors && effectiveDiff) {
+        mrParts.push('competitors named with specific differentiation stated');
+      } else if (hasNamedCompetitors && undiffRiskPresent) {
+        mrParts.push('competitors named, differentiation not yet demonstrated');
+      } else if (hasNamedCompetitors) {
+        mrParts.push('competitors named but differentiation still thin');
+      } else {
+        mrParts.push('competitive landscape not yet mapped');
+      }
+      if (conversationData.hasExternalDependency) mrParts.push('dependency on external platforms/APIs');
+      if (conversationData.unprovenAssumptionCount > 2) mrParts.push('multiple unproven assumptions in play');
+      else if (conversationData.unprovenAssumptionCount > 0) mrParts.push('unvalidated assumptions in play');
+      if (conversationData.explicitlyNotValidated) mrParts.push('no user validation reported');
+
+      const marketBasedOn = mrParts.join('; ');
+
+      // Explicit threshold: High = dangerous (≥2 unvalidated assumptions AND weak/no diff)
+      // Medium = 1 unvalidated OR ambiguous diff
+      // Low = validated + clear specific diff
+      const unvalidated = conversationData.unprovenAssumptionCount;
+      let marketLevel;
+      if (unvalidated >= 2 && (!effectiveDiff || undiffRiskPresent)) {
+        marketLevel = 'High';
+      } else if (unvalidated >= 1 || undiffRiskPresent || (!effectiveDiff && hasNamedCompetitors)) {
+        marketLevel = 'Medium';
+      } else if (conversationData.hasAnyUserValidation && effectiveDiff && !conversationData.explicitlyNotValidated) {
+        marketLevel = 'Low';
+      } else {
+        // Fallback: invert score-based level (high score = low risk = Low danger)
+        const raw = getSignalLevel(scores.marketRisk);
+        marketLevel = raw === 'High' ? 'Low' : raw === 'Low' ? 'High' : 'Medium';
+      }
+
+      return {
+        problemClarity: {
+          basedOn: problemBasedOn,
+          level: reconcileSignalLevel(scores.problemClarity, pcParts.length === 3, problemBasedOn),
+        },
+        userValidation: {
+          basedOn: userBasedOn,
+          level: reconcileSignalLevel(
+            scores.userValidation,
+            uvParts.length > 0 && !conversationData.explicitlyNotValidated,
+            userBasedOn
+          ),
+        },
+        marketRisk: {
+          basedOn: marketBasedOn,
+          level: marketLevel,
+        },
+      };
+    }
+
+    function finalizePlan(rawPlan, messages) {
+      const data = extractConversationData(messages);
+      const confidence = calculateConfidenceScores(data, sessionScoreAdjustments);
+      const confidenceSignals = getConfidenceSignals(confidence, data, rawPlan.risks, rawPlan.competitiveContext);
+      return { ...rawPlan, confidence, confidenceSignals, _conversationData: data };
+    }
+
+    function sessionAdjustmentNote() {
+      const count = stressTestLog.filter(e => e.response === 'fixable').length;
+      if (!count) return '';
+      return `This session has adjusted scoring based on ${count} stress test response${count === 1 ? '' : 's'}. (Lightweight session adjustment — not cross-user learning.)`;
+    }
+
+    function applyStressTestAdjustment(response, assumptionText) {
+      if (response !== 'fixable') return;
+      const text = (assumptionText || '').toLowerCase();
+      if (/\b(market|competitor|supply|demand|platform|two-sided)\b/.test(text)) {
+        sessionScoreAdjustments.marketRisk += 5;
+      } else if (/\b(problem|pain|audience|user|customer|icp|who)\b/.test(text)) {
+        sessionScoreAdjustments.problemClarity += 5;
+      } else {
+        sessionScoreAdjustments.userValidation += 5;
+      }
+      if (currentPlan) {
+        currentPlan = finalizePlan(currentPlan, conversationHistory);
+        renderPlanWorkspace(currentPlan, currentReferenceProfile);
+      }
+    }
+
+    function normalizeReasonItem(item, primaryKey) {
+      if (typeof item === 'string') {
+        return { [primaryKey]: item, mitigation: '', basedOn: '', referenceCheck: '', ifWrong: '' };
+      }
+      return item;
+    }
+
+    function sanitizeValidationBar(text, conversationData) {
+      if (!text) return '';
+      const hasValidation = conversationData?.hasAnyUserValidation;
+      if (hasValidation) return text;
+      const stripped = text
+        .replace(/[^.!?]*(?:evidence from direct conversations?|direct conversations?(?: and small-scale trials?)?|interviews?(?: with (?:users|customers))?|user validation (?:already|has)|small-scale trials?|talked to (?:\d+ )?(?:users|customers)|validation (?:already|has) occurred)[^.!?]*[.!?]\s*/gi, '')
+        .trim();
+      return stripped || 'General reasoning criteria for this category — no in-session user validation reported yet.';
+    }
+
+    function normalizeJsonString(raw) {
+      return raw
+        .replace(/[‘’]/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/,(\s*[}\]])/g, '$1');
+    }
+
+    function parseJsonBlock(text) {
+      const match = text.match(/```json\s*([\s\S]*?)```/);
+      if (!match) return null;
+      const raw = normalizeJsonString(match[1].trim());
+      try {
+        return JSON.parse(raw);
+      } catch (err) {
+        console.error('parseJsonBlock failed. Raw text was:', text);
+        console.error('Parse error:', err.message);
+        return null;
+      }
+    }
+
+    function parseTypedJsonBlock(text, type) {
+      const blocks = [...text.matchAll(/```json\s*([\s\S]*?)```/gi)];
+      for (const m of blocks) {
+        const raw = normalizeJsonString(m[1].trim());
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.type === type) return parsed;
+        } catch (err) {
+          console.error('parseTypedJsonBlock failed for type:', type, '| Raw:', m[1].trim());
+          console.error('Parse error:', err.message);
+        }
+      }
+      return null;
+    }
+
+    function stripJsonBlock(text) {
+      let cleaned = text.replace(/```json[\s\S]*?```/g, '');
+      // Defensive: a truncated response has an opening ```json fence with no
+      // closing fence, so the regex above won't match it. Strip from the
+      // opening fence to the end instead of leaking a half-formed JSON blob.
+      cleaned = cleaned.replace(/```json[\s\S]*$/, '');
+      return cleaned.trim();
+    }
+
+    function parseStageTag(text) {
+      if (!text) return null;
+      const matches = [...text.matchAll(new RegExp(STAGE_TAG_PATTERN.source, 'gi'))];
+      return matches.length ? matches[matches.length - 1][1].toLowerCase() : null;
+    }
+
+    function stripStageTag(text) {
+      return text.replace(new RegExp('\\n?' + STAGE_TAG_PATTERN.source + '\\s*', 'gi'), '').trim();
+    }
+
+    function stripAssistantDisplay(text) {
+      return stripStageTag(stripJsonBlock(text));
+    }
+
+    function getCompletedStages(messages) {
+      const completed = new Set();
+      for (const msg of messages) {
+        if (msg.role !== 'assistant') continue;
+        const stage = parseStageTag(msg.content);
+        if (stage) completed.add(stage);
+      }
+      return completed;
+    }
+
+    function getConversationStage() {
+      for (let i = conversationHistory.length - 1; i >= 0; i--) {
+        if (conversationHistory[i].role !== 'assistant') continue;
+        const stage = parseStageTag(conversationHistory[i].content);
+        if (stage) return stage;
+      }
+      return 'idea_capture';
+    }
+
+    function buildStageDirective() {
+      const current = getConversationStage();
+      const completed = getCompletedStages(conversationHistory);
+      const missing = PLAN_PREREQUISITES.filter(s => !completed.has(s));
+      const data = extractConversationData(conversationHistory);
+      const hints = {
+        idea_capture: 'Acknowledge the idea, then move to clarification on your next turn.',
+        clarification: 'Ask 1-2 clarifying questions. Run the mandatory AI differentiation check: what is AI doing that a form/spreadsheet/existing tool cannot? If target user is vague (bare noun only), ask ONE narrowing question — no plan. Tag [STAGE:assumption_surfacing] only when listing assumptions.',
+        assumption_surfacing: 'Surface assumptions (specific, necessary, testable — reject generic). Include one about the named AI capability. Get user reaction. Do not output risks or JSON yet.',
+        risk_analysis: 'Surface idea-specific risks plus 1-2 AI/responsible-AI risks with mitigations. Include "no clear AI differentiator" risk if applicable. Do not output JSON until user has responded.',
+        reference_profile: 'Output referenceProfile JSON only if target user has group+situation+cause. No plan JSON yet.',
+        plan: 'Output plan JSON only if stages 2–5 are complete AND specificity gates pass. Explain pre-calculated scores in prose only.'
+      };
+
+      let directive = `\n---\nStage control:\n- Last stage tag in conversation: ${current}\n- ${hints[current] || ''}\n`;
+      if (missing.length) {
+        directive += `- Required before plan JSON: ${missing.join(', ')}\n`;
+      }
+
+      if (!data.hasSpecificTargetUser) {
+        directive += '- Specificity gate FAILED (target user): conversation lacks named group + situation + cause. Do NOT output plan JSON. Reply with ONE narrowing question only.\n';
+      }
+      if (!data.hasSpecificPain) {
+        const missingPain = !data.hasBehavior ? 'current behavior' : !data.hasFailurePoint ? 'failure point' : 'consequence/cost';
+        directive += `- Specificity gate FAILED (problem clarity): missing ${missingPain}. Do NOT output plan JSON. Ask ONE follow-up targeting that missing piece.\n`;
+      }
+      if (data.hasSpecificTargetUser && data.hasSpecificPain && current === 'plan') {
+        directive += '- Specificity gates passed for target user and pain. Plan JSON permitted if prerequisites complete.\n';
+      }
+      if (pendingAiConcern) {
+        directive += '- User has not yet responded to the aiConcern flag. Do NOT output referenceProfile or plan JSON until they choose an option.\n';
+      }
+
+      directive += '- End this message with the correct [STAGE:...] tag on its own last line.\n';
+      return directive;
+    }
+
+    function buildScoringDirective() {
+      const current = getConversationStage();
+      const lastUserMsg = [...conversationHistory].reverse().find(m => m.role === 'user');
+      const isBuildTrigger = lastUserMsg && /^BUILD\b/i.test(lastUserMsg.content.trim());
+      if (current !== 'plan' && !isBuildTrigger) return '';
+
+      const data = extractConversationData(conversationHistory);
+      const scores = calculateConfidenceScores(data, sessionScoreAdjustments);
+
+      // Pull Stage 4 (risk_analysis) assistant messages as a proxy for plan.risks —
+      // they contain the same undifferentiation signals the model just described,
+      // so we can reconcile the market risk level before the plan JSON exists.
+      const stage4Texts = conversationHistory
+        .filter(m => m.role === 'assistant' && /\[STAGE:risk_analysis\]/i.test(m.content))
+        .map(m => m.content.replace(/\[STAGE:[^\]]+\]/gi, ''));
+
+      // getConfidenceSignals already handles plain strings in the planRisks slot,
+      // so we pass stage4Texts directly to get the same reconciled result the
+      // post-hoc panel render will produce.
+      const signals = getConfidenceSignals(scores, data, stage4Texts, currentReferenceProfile?.competitiveContext);
+
+      let directive = '\n---\n';
+      directive += 'Pre-calculated signals (already reconciled — these are the EXACT labels and justifications that will appear in the user\'s panel; use these exact words, do not recompute or invent different ones). Format each as a bold line with a relevant emoji prefix:\n';
+      directive += `- 🎯 **Problem Clarity: ${signals.problemClarity.level}** — ${signals.problemClarity.basedOn}\n`;
+      directive += `- 👥 **User Validation: ${signals.userValidation.level}** — ${signals.userValidation.basedOn}\n`;
+      directive += `- ⚠️ **Market Risk: ${signals.marketRisk.level}** — ${signals.marketRisk.basedOn}\n`;
+      directive += 'Reference ONLY these three signals by these exact names. Never state a percentage. Never invent additional metric names.\n';
+      directive += 'Do NOT include confidence or confidenceLabels in your plan JSON.\n';
+      return directive;
+    }
+
+    function buildPrompt(messages, systemPrompt, includeStageDirectives = true) {
+      let prompt = systemPrompt;
+      if (includeStageDirectives) {
+        prompt += buildStageDirective() + buildScoringDirective();
+      }
+      prompt += '\n\n---\n\nConversation:\n';
+      for (const msg of messages) {
+        const label = msg.role === 'user' ? 'User' : 'Assistant';
+        prompt += `\n${label}: ${msg.content}\n`;
+      }
+      prompt += '\nAssistant:';
+      return prompt;
+    }
+
+    async function callAI(messages, systemPrompt, includeStageDirectives = true) {
+      if (!GEMINI_API_KEY) {
+        showApiKeyModal();
+        throw new Error('No Gemini API key set yet. Enter your key in the box that just appeared, then try again.');
+      }
+
+      const prompt = buildPrompt(messages, systemPrompt, includeStageDirectives);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 16384, temperature: 0.7 },
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        if (response.status === 400 || response.status === 403) {
+          localStorage.removeItem(API_KEY_STORAGE);
+          GEMINI_API_KEY = '';
+          showApiKeyModal();
+          throw new Error('That API key was rejected by Google. Please re-enter a valid key in the box that just appeared.');
+        }
+        throw new Error(`Gemini API error (${response.status}): ${errBody}`);
+      }
+
+      const data = await response.json();
+      const finishReason = data?.candidates?.[0]?.finishReason;
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (finishReason === 'MAX_TOKENS') {
+        console.error('Gemini response was cut off (MAX_TOKENS). Raw data:', data);
+        throw new Error('The response got cut off before it finished generating (hit the output limit). Nothing was lost — just try that action again.');
+      }
+      if (!text) {
+        throw new Error('Gemini API returned no text in the response.');
+      }
+      return text;
+    }
+
+    function appendMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message message-${role}`;
+      if (role === 'assistant') {
+        div.innerHTML = renderMarkdownSafe(content);
+      } else {
+        div.textContent = content;
+      }
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+      const div = document.createElement('div');
+      div.className = 'message message-assistant typing-indicator';
+      div.id = 'typing-indicator';
+      div.innerHTML = '<span></span><span></span><span></span>';
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    function getSignalLevel(score) {
+      const n = Math.max(0, Math.min(100, Math.round(score)));
+      if (n >= 70) return 'High';
+      if (n >= 40) return 'Medium';
+      return 'Low';
+    }
+
+    function renderConfidenceBar(metricName, score, signal, invertColors) {
+      const level = signal?.level || getSignalLevel(score);
+      const basedOn = signal?.basedOn || 'insufficient conversation signals yet';
+      const pct = Math.max(0, Math.min(100, Math.round(score)));
+      const filled = Math.round((pct / 100) * 8);
+      const bar = '█'.repeat(filled) + '░'.repeat(8 - filled);
+      // Market Risk uses inverted colors: High risk = orange (bad), Low risk = green (good)
+      let levelClass;
+      if (invertColors) {
+        levelClass = level === 'High' ? 'label-low' : level === 'Low' ? 'label-high' : 'label-medium';
+      } else {
+        levelClass = level === 'High' ? 'label-high' : level === 'Low' ? 'label-low' : 'label-medium';
+      }
+      return `
+        <div class="confidence-signal-card">
+          <div class="confidence-row">
+            <span class="confidence-signal-title">${escapeHtml(metricName)} Signal: <span class="confidence-signal-level ${levelClass}">${level}</span></span>
+            <span class="confidence-bar">${bar}</span>
+          </div>
+          <p class="confidence-based-on">Based on: ${escapeHtml(basedOn)}</p>
+        </div>`;
+    }
+
+    function renderReasonChainCard(item, type) {
+      const normalized = normalizeReasonItem(item, type === 'risk' ? 'risk' : 'assumption');
+      const headline = normalized[type === 'risk' ? 'risk' : 'assumption'] || '';
+      const cardClass = type === 'risk' ? 'risk-card' : 'assumption-card';
+      const mitigationRow = type === 'risk' && normalized.mitigation ? `
+          <div class="reason-chain-row">
+            <span class="reason-chain-key">Mitigation</span>
+            <span class="reason-chain-val">${escapeHtml(normalized.mitigation)}</span>
+          </div>` : '';
+      return `
+        <div class="reason-chain-card ${cardClass}">
+          <div class="reason-chain-headline">${escapeHtml(headline)}</div>
+          ${mitigationRow}
+          <div class="reason-chain-row">
+            <span class="reason-chain-key">Based on</span>
+            <span class="reason-chain-val">${escapeHtml(normalized.basedOn || '—')}</span>
+          </div>
+          <div class="reason-chain-row">
+            <span class="reason-chain-key">Reference check</span>
+            <span class="reason-chain-val">${escapeHtml(normalized.referenceCheck || '—')}</span>
+          </div>
+          <div class="reason-chain-row">
+            <span class="reason-chain-key">If wrong</span>
+            <span class="reason-chain-val">${escapeHtml(normalized.ifWrong || '—')}</span>
+          </div>
+        </div>`;
+    }
+
+    function renderReferenceProfileSection(profile, conversationData) {
+      if (!profile) return '';
+      const success = (profile.successPatterns || [])
+        .map(p => `<li>${escapeHtml(p)}</li>`).join('');
+      const failures = (profile.commonFailureModes || [])
+        .map(f => `<li>${escapeHtml(f)}</li>`).join('');
+      const validationBar = sanitizeValidationBar(profile.typicalValidationBar || '', conversationData);
+      return `
+        <section class="plan-section reference-profile-card">
+          <h3 class="section-title">📐 What This Is Compared Against</h3>
+          <p class="reference-category">The system compares your situation against structured reasoning criteria — not predictions of outcome.</p>
+          <p class="reference-category">Category: <strong>${escapeHtml(profile.ideaCategory || 'General')}</strong></p>
+          <p class="reference-category" style="margin-bottom:0.35rem">Reasoning criteria often checked in this space:</p>
+          <ul class="reference-list success">${success || '<li>No criteria listed</li>'}</ul>
+          <p class="reference-category" style="margin-top:0.75rem;margin-bottom:0.35rem">Common reasoning gaps:</p>
+          <ul class="reference-list failure">${failures || '<li>No gaps listed</li>'}</ul>
+          ${validationBar ? `<div class="reference-validation-bar">${escapeHtml(validationBar)}</div>` : ''}
+          <p class="reference-profile-caption">These are general patterns for reasoning, not a prediction of outcome.</p>
+        </section>`;
+    }
+
+    function renderAiPipelineSection(pipeline) {
+      if (!pipeline) return '';
+      return `
+        <section class="plan-section ai-pipeline-card">
+          <h3 class="section-title">🔧 AI Pipeline</h3>
+          <div class="pipeline-rows">
+            <div class="pipeline-row">
+              <span class="pipeline-key">Input</span>
+              <span class="pipeline-val">${escapeHtml(pipeline.input || '—')}</span>
+            </div>
+            <div class="pipeline-row">
+              <span class="pipeline-key">AI Process</span>
+              <span class="pipeline-val">${escapeHtml(pipeline.aiProcess || '—')}</span>
+            </div>
+            <div class="pipeline-row">
+              <span class="pipeline-key">Output</span>
+              <span class="pipeline-val">${escapeHtml(pipeline.output || '—')}</span>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function renderWhyAiSection(whyAi) {
+      if (!whyAi) return '';
+      return `
+        <section class="plan-section why-ai-card">
+          <h3 class="section-title">💡 Why AI</h3>
+          <p class="why-ai-text">${escapeHtml(whyAi)}</p>
+        </section>`;
+    }
+
+    function renderImpactSection(impactStatement) {
+      if (!impactStatement) return '';
+      return `
+        <section class="plan-section impact-card">
+          <h3 class="section-title">📈 Impact</h3>
+          <p class="impact-text">${escapeHtml(impactStatement)}</p>
+        </section>`;
+    }
+
+    function normalizeFirstStep(firstStep) {
+      if (!firstStep) return { action: '', captureAfter: [] };
+      if (typeof firstStep === 'string') return { action: firstStep, captureAfter: [] };
+      return {
+        action: firstStep.action || '',
+        captureAfter: Array.isArray(firstStep.captureAfter) ? firstStep.captureAfter : [],
+      };
+    }
+
+    function renderFirstStepSection(firstStep) {
+      const normalized = normalizeFirstStep(firstStep);
+      const capture = normalized.captureAfter
+        .map(q => `<li>${escapeHtml(q)}</li>`)
+        .join('');
+      return `
+        <div class="first-step-box">
+          <p class="first-step-action">${escapeHtml(normalized.action || '')}</p>
+          ${capture ? `
+            <div class="first-step-capture">
+              <p class="first-step-capture-label">After you do this, record:</p>
+              <ul class="first-step-capture-list">${capture}</ul>
+            </div>` : ''}
+        </div>`;
+    }
+
+    function renderMilestoneCard(milestone) {
+      const dayLabel = `Day ${milestone.day}`;
+      const tasks = (milestone.tasks || [])
+        .map(t => `<li>${escapeHtml(t)}</li>`)
+        .join('');
+      return `
+        <div class="milestone-card">
+          <div class="milestone-header">
+            <span class="milestone-day">${escapeHtml(String(dayLabel))}</span>
+            <span class="milestone-title">${escapeHtml(milestone.title || '')}</span>
+          </div>
+          <ul class="milestone-tasks">${tasks}</ul>
+        </div>`;
+    }
+
+    function renderValidationThreshold(threshold) {
+      if (!threshold) return '';
+      return `
+        <section class="plan-section validation-threshold-section">
+          <h3 class="section-title">🎯 Validation Threshold</h3>
+          <div class="validation-threshold-box">
+            <p class="validation-threshold-text">${escapeHtml(threshold)}</p>
+          </div>
+        </section>`;
+    }
+
+    function bindDecisionButtons() {
+      const buildBtn = document.getElementById('decision-build');
+      const pivotBtn = document.getElementById('decision-pivot');
+      const dropBtn = document.getElementById('decision-drop');
+      if (buildBtn) {
+        buildBtn.addEventListener('click', () => {
+          awaitingDecision = false;
+          submitConversationMessage('BUILD — I have enough to proceed. Please generate the full execution plan now.');
+        });
+      }
+      if (pivotBtn) {
+        pivotBtn.addEventListener('click', () => {
+          awaitingDecision = false;
+          submitConversationMessage('PIVOT — the problem is real but this solution needs rethinking. Help me rethink the approach.');
+        });
+      }
+      if (dropBtn) {
+        dropBtn.addEventListener('click', () => {
+          awaitingDecision = false;
+          submitConversationMessage('DROP — this problem is not validated enough to pursue. Acknowledge that and help me think about what problem might be worth exploring instead. Do not generate an execution plan.');
+        });
+      }
+    }
+
+    function loadFeedbackEntries() {
+      try {
+        const raw = localStorage.getItem(FEEDBACK_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveFeedbackEntry(value) {
+      const entries = loadFeedbackEntries();
+      entries.push({ value, at: new Date().toISOString() });
+      localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(entries));
+      return entries;
+    }
+
+    function feedbackStatsLine() {
+      const entries = loadFeedbackEntries();
+      if (!entries.length) return '';
+      const helpful = entries.filter(e => e.value === 'yes' || e.value === 'partially').length;
+      return `${helpful} of ${entries.length} responses found this helpful (Yes or Partially)`;
+    }
+
+    function bindOutcomeFeedback() {
+      const section = document.getElementById('outcome-feedback');
+      if (!section) return;
+
+      const actions = section.querySelector('.outcome-feedback-actions');
+      const thanks = section.querySelector('.outcome-feedback-thanks');
+      const stats = section.querySelector('.outcome-feedback-stats');
+      const labels = { yes: 'Yes', partially: 'Partially', no: 'No' };
+
+      section.querySelectorAll('.outcome-feedback-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const value = btn.dataset.feedback;
+          if (!value || btn.disabled) return;
+
+          saveFeedbackEntry(value);
+          actions.hidden = true;
+          thanks.textContent = `Thanks — recorded as ${labels[value]}.`;
+          thanks.hidden = false;
+
+          const statsText = feedbackStatsLine();
+          if (statsText) {
+            stats.textContent = statsText;
+            stats.hidden = false;
+          }
+        });
+      });
+    }
+
+    function renderPlanWorkspace(plan, referenceProfile) {
+      if (!plan && !referenceProfile) {
+        showPlanPlaceholder();
+        return;
+      }
+
+      if (referenceProfile && !plan) {
+        awaitingDecision = true;
+        const convData = extractConversationData(conversationHistory);
+        planPanel.innerHTML = `
+          <div class="plan-content fade-in">
+            ${renderReferenceProfileSection(referenceProfile, convData)}
+            <div class="decision-lock-section fade-in">
+              <div class="decision-lock-title">What's your call?</div>
+              <p class="decision-lock-desc">Reasoning criteria are locked in. Before the execution plan is generated, you must make a decision. Use the buttons below — typing a message won't advance the plan.</p>
+              <div class="decision-buttons">
+                <button type="button" class="decision-btn decision-build" id="decision-build">
+                  <span class="decision-btn-label">BUILD</span>
+                  <span class="decision-btn-desc">Problem validated enough — show me the execution plan</span>
+                </button>
+                <button type="button" class="decision-btn decision-pivot" id="decision-pivot">
+                  <span class="decision-btn-label">PIVOT</span>
+                  <span class="decision-btn-desc">Problem's real but this solution needs rethinking — help me pivot the approach</span>
+                </button>
+                <button type="button" class="decision-btn decision-drop" id="decision-drop">
+                  <span class="decision-btn-label">DROP</span>
+                  <span class="decision-btn-desc">Not validated enough to pursue — help me find a different problem</span>
+                </button>
+              </div>
+            </div>
+          </div>`;
+        bindDecisionButtons();
+        return;
+      }
+
+      const confidence = plan.confidence || {};
+      const confidenceSignals = plan.confidenceSignals || {};
+      const convData = plan._conversationData || extractConversationData(conversationHistory);
+      const assumptions = (plan.assumptions || []).map(a => renderReasonChainCard(a, 'assumption')).join('');
+      const risks = (plan.risks || []).map(r => renderReasonChainCard(r, 'risk')).join('');
+      const milestones = (plan.milestones || []).map(renderMilestoneCard).join('');
+      const adjNote = sessionAdjustmentNote();
+
+      planPanel.innerHTML = `
+        <div class="plan-content fade-in">
+          ${renderReferenceProfileSection(referenceProfile, convData)}
+          <div class="plan-header">
+            <h2 class="plan-title">${escapeHtml(plan.ideaTitle || 'Untitled Idea')}</h2>
+            <p class="plan-summary">${escapeHtml(plan.summary || '')}</p>
+          </div>
+          ${renderImpactSection(plan.impactStatement)}
+          ${renderWhyAiSection(plan.whyAi)}
+          ${renderAiPipelineSection(plan.aiPipeline)}
+          <section class="plan-section">
+            <h3 class="section-title">🧩 Key Assumptions</h3>
+            <div class="reason-chain-cards">${assumptions || '<p class="reference-category">No assumptions listed</p>'}</div>
+          </section>
+          <section class="plan-section">
+            <h3 class="section-title">⚠️ Risks</h3>
+            <div class="reason-chain-cards">${risks || '<p class="reference-category">No risks listed</p>'}</div>
+          </section>
+          <section class="plan-section">
+            <h3 class="section-title">📊 Reasoning Signals</h3>
+            <p class="reference-category" style="margin-bottom:0.65rem">Qualitative signals derived from conversation — label and justification are computed together.</p>
+            <div class="confidence-scores">
+              ${renderConfidenceBar('Problem Clarity', confidence.problemClarity ?? 0, confidenceSignals.problemClarity)}
+              ${renderConfidenceBar('User Validation', confidence.userValidation ?? 0, confidenceSignals.userValidation)}
+              ${renderConfidenceBar('Market Risk', confidence.marketRisk ?? 0, confidenceSignals.marketRisk, true)}
+            </div>
+            <p class="stress-disclaimer">${escapeHtml(REASONING_DISCLAIMER)}</p>
+            ${adjNote ? `<p class="session-adjustment-note">${escapeHtml(adjNote)}</p>` : ''}
+          </section>
+          ${renderValidationThreshold(plan.validationThreshold)}
+          <section class="plan-section">
+            <h3 class="section-title">🗓️ 30 / 60 / 90 Day Milestones</h3>
+            <div class="milestones-grid">${milestones}</div>
+          </section>
+          <section class="plan-section">
+            <h3 class="section-title">🚀 First Step</h3>
+            ${renderFirstStepSection(plan.firstStep)}
+            ${plan.costNote ? `<p class="cost-note">${escapeHtml(plan.costNote)}</p>` : ''}
+          </section>
+          <section class="plan-section outcome-feedback" id="outcome-feedback">
+            <h3 class="section-title">✅ Quick Check-in</h3>
+            <p class="outcome-feedback-question">Did this plan help you think more clearly?</p>
+            <div class="outcome-feedback-actions">
+              <button type="button" class="outcome-feedback-btn" data-feedback="yes">Yes</button>
+              <button type="button" class="outcome-feedback-btn" data-feedback="partially">Partially</button>
+              <button type="button" class="outcome-feedback-btn" data-feedback="no">No</button>
+            </div>
+            <p class="outcome-feedback-thanks" hidden></p>
+            <p class="outcome-feedback-stats" hidden></p>
+          </section>
+        </div>`;
+
+      bindOutcomeFeedback();
+    }
+
+    function bindStressFollowUp() {
+      const section = document.getElementById('stress-followup');
+      if (!section) return;
+
+      const actions = section.querySelector('.stress-followup-actions');
+      const thanks = section.querySelector('.stress-followup-thanks');
+      const labels = { fixable: 'This is fixable', real_problem: 'This is a real problem', unsure: 'Not sure yet' };
+
+      section.querySelectorAll('.stress-followup-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const value = btn.dataset.stressFeedback;
+          if (!value) return;
+
+          stressTestLog.push({
+            response: value,
+            assumption: lastStressTestResult?.hiddenAssumption || '',
+            at: new Date().toISOString(),
+          });
+
+          if (value === 'fixable') {
+            applyStressTestAdjustment('fixable', lastStressTestResult?.hiddenAssumption);
+          }
+
+          actions.hidden = true;
+          thanks.textContent = `Noted — ${labels[value] || value}.`;
+          thanks.hidden = false;
+        });
+      });
+    }
+
+    function renderStressTest(result) {
+      lastStressTestResult = result;
+      const verdict = result.verdict || 'pivot';
+      const verdictLabels = {
+        survive: 'Testable gap',
+        pivot: 'Reframe needed',
+        kill: 'Critical gap',
+      };
+      const disclaimer = result.disclaimer || STRESS_DISCLAIMER;
+
+      stressTestSection.innerHTML = `
+        <div class="stress-test-card verdict-${verdict} fade-in">
+          <div class="stress-test-header">
+            <span class="stress-test-label">🔍 Evidence Gap Analysis</span>
+            <span class="verdict-badge verdict-${verdict}">${verdictLabels[verdict] || verdict}</span>
+          </div>
+          <div class="stress-test-rows">
+            <div class="stress-row">
+              <span class="stress-label">Biggest unvalidated link</span>
+              <span class="stress-value">${escapeHtml(result.biggestWeakness || '')}</span>
+            </div>
+            <div class="stress-row">
+              <span class="stress-label">Core assumption unproven</span>
+              <span class="stress-value">${escapeHtml(result.hiddenAssumption || '')}</span>
+            </div>
+            <div class="stress-row">
+              <span class="stress-label">Evidence needed</span>
+              <span class="stress-value">${escapeHtml(result.evidenceNeeded || '')}</span>
+            </div>
+            <div class="stress-row">
+              <span class="stress-label">If assumption fails</span>
+              <span class="stress-value">${escapeHtml(result.ifFalse || '')}</span>
+            </div>
+          </div>
+          <p class="verdict-reason">${escapeHtml(result.verdictReason || '')}</p>
+          <p class="stress-disclaimer">${escapeHtml(disclaimer)}</p>
+          <div class="stress-followup" id="stress-followup">
+            <p class="stress-followup-question">Did this change how you see the idea?</p>
+            <div class="stress-followup-actions">
+              <button type="button" class="stress-followup-btn" data-stress-feedback="fixable">This is fixable</button>
+              <button type="button" class="stress-followup-btn" data-stress-feedback="real_problem">This is a real problem</button>
+              <button type="button" class="stress-followup-btn" data-stress-feedback="unsure">Not sure yet</button>
+            </div>
+            <p class="stress-followup-thanks" hidden></p>
+          </div>
+        </div>`;
+
+      bindStressFollowUp();
+      stressTestSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function concernChoiceMessage(option) {
+      const messages = {
+        'Continue anyway': 'I want to continue anyway and proceed with the plan as-is.',
+        'Pivot the idea': 'I want to pivot the idea.',
+        'Test the assumption first': 'I want to test the assumption first before continuing.',
+      };
+      return messages[option.label] || option.label;
+    }
+
+    function renderAiConcern(concern) {
+      pendingAiConcern = concern;
+      const options = (concern.options || []).map((opt, i) => `
+        <button type="button" class="concern-option-btn" data-concern-index="${i}">
+          <span class="concern-option-label">${escapeHtml(opt.label || '')}</span>
+          <span class="concern-option-desc">${escapeHtml(opt.description || '')}</span>
+        </button>`).join('');
+
+      stressTestSection.innerHTML = `
+        <div class="ai-concern-card fade-in">
+          <div class="ai-concern-header">
+            <span class="ai-concern-label">⚠️ Advisor concern — you decide</span>
+          </div>
+          <p class="ai-concern-statement">${renderMarkdownSafe(concern.concern || '')}</p>
+          <p class="ai-concern-prompt">Pick how you want to proceed:</p>
+          <div class="concern-options">${options || '<p class="reference-category">No options provided.</p>'}</div>
+          <p class="stress-disclaimer">${escapeHtml(REASONING_DISCLAIMER)}</p>
+        </div>`;
+
+      bindAiConcernOptions(concern);
+      stressTestSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function bindAiConcernOptions(concern) {
+      stressTestSection.querySelectorAll('.concern-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.concernIndex);
+          const option = concern.options?.[idx];
+          if (!option) return;
+          pendingAiConcern = null;
+          stressTestSection.innerHTML = '';
+          submitConversationMessage(concernChoiceMessage(option));
+        });
+      });
+    }
+
+    function showPlanPlaceholder() {
+      planPanel.innerHTML = `
+        <div class="plan-placeholder">
+          <div class="placeholder-icon">📋</div>
+          <p>Your execution plan will appear here once IdeaForge has enough context.</p>
+          <p class="placeholder-hint">Share your idea in the chat to get started.</p>
+        </div>`;
+    }
+
+    async function submitConversationMessage(text) {
+      if (!text) return;
+
+      // Gate: while awaiting BUILD/PIVOT/DROP decision, block all free-text input
+      if (awaitingDecision) {
+        appendMessage('user', text);
+        appendMessage('assistant', 'Please use the BUILD, PIVOT, or DROP buttons in the panel to continue. Typing a message here won\'t advance the plan — your decision locks the direction.');
+        messageInput.value = '';
+        return;
+      }
+
+      messageInput.value = '';
+      sendBtn.disabled = true;
+      appendMessage('user', text);
+      conversationHistory.push({ role: 'user', content: text });
+
+      showTypingIndicator();
+
+      try {
+        const reply = await callAI(conversationHistory, SYSTEM_PROMPT);
+        hideTypingIndicator();
+
+        const parsed = parseJsonBlock(reply);
+        const aiConcern = parsed?.type === 'aiConcern' ? parsed : parseTypedJsonBlock(reply, 'aiConcern');
+        const replyStage = parseStageTag(reply);
+        const displayText = stripAssistantDisplay(reply)
+          || (parsed?.type === 'referenceProfile' ? 'The system compares your situation against structured reasoning criteria →' : '')
+          || (parsed?.type === 'plan' ? "Here's your execution plan →" : '')
+          || (aiConcern?.concern || '')
+          || 'That response came back incomplete or malformed. Click the decision button again to retry.';
+        const historyWithReply = [...conversationHistory, { role: 'assistant', content: reply }];
+        const completedStages = getCompletedStages(historyWithReply);
+
+        appendMessage('assistant', displayText);
+        conversationHistory.push({ role: 'assistant', content: reply });
+
+        if (aiConcern) {
+          renderAiConcern(aiConcern);
+        }
+
+        if (parsed?.type === 'referenceProfile' && replyStage === 'reference_profile') {
+          currentReferenceProfile = parsed;
+          renderPlanWorkspace(null, currentReferenceProfile);
+        }
+
+        const planReady = parsed?.type === 'plan'
+          && replyStage === 'plan'
+          && PLAN_PREREQUISITES.every(s => completedStages.has(s));
+
+        if (planReady) {
+          currentPlan = finalizePlan(parsed, conversationHistory);
+          renderPlanWorkspace(currentPlan, currentReferenceProfile);
+          stressTestBtn.hidden = false;
+        }
+      } catch (err) {
+        hideTypingIndicator();
+        appendMessage('assistant', `Error: ${err.message || 'Something went wrong.'}`);
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.focus();
+      }
+    }
+
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      await submitConversationMessage(text);
+    }
+
+    async function runStressTest() {
+      if (!currentPlan) return;
+
+      stressTestBtn.disabled = true;
+      stressTestBtn.textContent = '🔥 Running…';
+
+      try {
+        const planContext = JSON.stringify(currentPlan, null, 2);
+        const prompt = STRESS_TEST_PROMPT(planContext);
+        const reply = await callAI(
+          [{ role: 'user', content: prompt }],
+          'You are an evidence-gap analyst. Output only JSON. Do not predict success or tell the user to quit.',
+          false
+        );
+
+        const parsed = parseJsonBlock(reply);
+        if (parsed && parsed.type === 'stressTest') {
+          renderStressTest(parsed);
+        } else {
+          console.error('Stress test parse failed. Raw reply was:', reply);
+          stressTestSection.innerHTML = '<p class="stress-error">Could not parse stress test results. Try again.</p>';
+        }
+      } catch (err) {
+        stressTestSection.innerHTML = `<p class="stress-error">Error: ${escapeHtml(err.message || 'Something went wrong.')}</p>`;
+      } finally {
+        stressTestBtn.disabled = false;
+        stressTestBtn.textContent = '🔥 Challenge My Idea';
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    stressTestBtn.addEventListener('click', runStressTest);
+
+    showPlanPlaceholder();
+  </script>
+</body>
+</html>
